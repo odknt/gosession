@@ -1,0 +1,8 @@
+language: go
+go:
+  - "1.11"
+env:
+  - GO111MODULE=on
+install: true
+script:
+  - go test ./...
