@@ -1,30 +1,37 @@
 package session
 
-type inMemorySession struct {
-	sid    string
-	values map[string]interface{}
-}
+import (
+	"testing"
 
-func newSession(sid string) Session {
-	return inMemorySession{
-		sid:    sid,
-		values: map[string]interface{}{},
-	}
-}
+	"github.com/stretchr/testify/assert"
+)
 
-func (s inMemorySession) Set(key string, value interface{}) error {
-	s.values[key] = value
-	return nil
-}
+func TestSession(t *testing.T) {
+	s := NewSession("dummy id", 0)
+	assert.NotNil(t, s)
 
-func (s inMemorySession) Get(key string) interface{} {
-	return s.values[key]
-}
+	s.Set("abc", "abc")
+	assert.Nil(t, s.Get("def"))
+	assert.NotNil(t, s.Get("abc"))
 
-func (s inMemorySession) Delete(key string) {
-	delete(s.values, key)
-}
+	s.Set("struct", struct {
+		name string
+	}{
+		"Jhon Doe",
+	})
+	_, err := s.GobEncode()
+	assert.Error(t, err)
 
-func (s inMemorySession) SessionID() string {
-	return s.sid
+	s.Delete("struct")
+	assert.Nil(t, s.Get("struct"))
+
+	bs, err := s.GobEncode()
+	assert.NoError(t, err)
+	assert.NotNil(t, bs)
+	assert.True(t, len(bs) > 15 /* time.Time */)
+
+	s2 := NewSession("dummy id", 0)
+	assert.NoError(t, s2.GobDecode(bs))
+	assert.True(t, s.data.Expires.Equal(s2.data.Expires))
+	assert.Equal(t, s.data.Values, s2.data.Values)
 }

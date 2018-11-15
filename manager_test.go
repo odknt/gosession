@@ -6,28 +6,31 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNew(t *testing.T) {
-	_, err := New("invalid", "dummy", -1)
+	opts := Option{Cookie: "dummy", MaxAge: -1}
+	_, err := NewManager("invalid", opts)
 	assert.Error(t, err)
-	m, err := New("memory", "dummy", -1)
+	m, err := NewManager("memory", opts)
 	assert.NoError(t, err)
 	assert.NotNil(t, m)
 }
 
-func TestNewSession(t *testing.T) {
+func TestManagerNewSession(t *testing.T) {
 	w := httptest.NewRecorder()
+	opts := Option{MaxAge: -1}
 
 	// returns error on newSession.
-	m, _ := New("error", "dummy", -1)
+	m, _ := NewManager("error", opts)
 	_, err := m.newSession(w)
 	assert.Error(t, err)
 
 	// success new session.
-	m, _ = New("memory", "dummy", -1)
+	m, _ = NewManager("memory", opts)
 	s, err := m.newSession(w)
 	assert.NoError(t, err)
 	assert.NotNil(t, s)
@@ -37,7 +40,9 @@ func TestNewSession(t *testing.T) {
 func TestStart(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
 	w := httptest.NewRecorder()
-	m, _ := New("memory", "dummy", 86400)
+
+	opts := Option{Cookie: "dummy", MaxAge: 86400}
+	m, _ := NewManager("memory", opts)
 
 	// cookie not found.
 	s, err := m.Start(w, r)
@@ -53,7 +58,7 @@ func TestStart(t *testing.T) {
 	invalid, err := m.Start(w, r)
 	assert.NoError(t, err)
 	assert.NotNil(t, invalid)
-	assert.NotEqual(t, sid, invalid.SessionID())
+	assert.NotEqual(t, sid, invalid.ID())
 
 	// session not found
 	w = httptest.NewRecorder()
@@ -62,8 +67,8 @@ func TestStart(t *testing.T) {
 	notfound, err := m.Start(w, r)
 	assert.NoError(t, err)
 	assert.NotNil(t, notfound)
-	assert.NotEqual(t, sid, notfound.SessionID())
-	assert.NotEqual(t, invalid.SessionID(), notfound.SessionID())
+	assert.NotEqual(t, sid, notfound.ID())
+	assert.NotEqual(t, invalid.ID(), notfound.ID())
 
 	// exists session.
 	w = httptest.NewRecorder()
@@ -78,18 +83,43 @@ func TestStart(t *testing.T) {
 	s, err = m.Start(w, r)
 	assert.NoError(t, err)
 	assert.NotNil(t, s)
-	assert.Equal(t, sid, s.SessionID())
+	assert.Equal(t, sid, s.ID())
+
+	// returns new session instead of expired session.
+	s.data.Expires, _ = time.Parse("2006-01-02", "2000-01-01")
+	m.provider.Init(s)
+	olds, err := m.Start(w, r)
+	assert.NoError(t, err)
+	assert.NotNil(t, olds)
+	assert.NotEqual(t, s.ID(), olds.ID())
+
+	// auto destroy after expires.
+	s.data.Expires = time.Now().Add(10 * time.Millisecond)
+	m.provider.Init(s)
+	s, _ = m.Start(w, r)
+	time.Sleep(11 * time.Millisecond)
+	olds, err = m.Start(w, r)
+	assert.NoError(t, err)
+	assert.NotNil(t, olds)
+	assert.NotEqual(t, s.ID(), olds.ID())
 }
 
-func TestReadAndDestroy(t *testing.T) {
-	m, _ := New("memory", "dummy", 86400)
-	s := newSession("invalid")
-	assert.Error(t, m.Destroy(s))
-
+func TestDestroy(t *testing.T) {
+	opts := Option{Cookie: "dummy", MaxAge: 86400}
+	m, _ := NewManager("memory", opts)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-	s, _ = m.Start(w, r)
+	s, _ := m.Start(w, r)
 	assert.NoError(t, m.Destroy(s))
+}
+
+func TestCommit(t *testing.T) {
+	opts := Option{Cookie: "dummy", MaxAge: 86400}
+	m, _ := NewManager("memory", opts)
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
+	s, _ := m.Start(w, r)
+	assert.NoError(t, m.Commit(s))
 }
 
 func TestRegister(t *testing.T) {

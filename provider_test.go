@@ -5,15 +5,14 @@ import (
 	"fmt"
 )
 
-type inMemoryProvider map[string]Session
+type inMemoryProvider map[string]*Session
 
-func (p inMemoryProvider) Init(sid string) (Session, error) {
-	s := newSession(sid)
-	p[sid] = s
-	return s, nil
+func (p inMemoryProvider) Init(s *Session) error {
+	p[s.ID()] = s
+	return nil
 }
 
-func (p inMemoryProvider) Read(sid string) (Session, error) {
+func (p inMemoryProvider) Read(sid string) (*Session, error) {
 	s, ok := p[sid]
 	if !ok {
 		return s, fmt.Errorf("not found session by given session id")
@@ -29,10 +28,14 @@ func (p inMemoryProvider) Destroy(sid string) error {
 	return nil
 }
 
+func (p inMemoryProvider) Commit(sid string) error {
+	return nil
+}
+
 type errorProvider struct {
 	inMemoryProvider
 }
 
-func (errorProvider) Init(string) (Session, error) {
-	return nil, errors.New("initialize session failed")
+func (errorProvider) Init(*Session) error {
+	return errors.New("initialize session failed")
 }

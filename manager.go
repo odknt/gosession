@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/rs/xid"
@@ -13,24 +12,38 @@ import (
 
 var providers = map[string]Provider{}
 
-// Manager controls session by using session provider.
-type Manager struct {
-	cookieName  string
-	lock        sync.Mutex
-	provider    Provider
-	maxLifeTime int64
+// Option is options when Manager creating session.
+type Option struct {
+	// defaults:
+	//   Cookie:   "gosessionid"
+	//   MaxAge:   0
+
+	Cookie string
+	MaxAge int
 }
 
-// New returns a new Manager given a provider name, cookie name, max lifetime.
-func New(providerName, cookieName string, maxLifeTime int64) (*Manager, error) {
+func setDefaults(opts Option) Option {
+	if opts.Cookie == "" {
+		opts.Cookie = "gosessionid"
+	}
+	return opts
+}
+
+// Manager controls session by using session provider.
+type Manager struct {
+	provider Provider
+	opts     Option
+}
+
+// NewManager returns a new Manager given a provider name, cookie name, max lifetime.
+func NewManager(providerName string, opts Option) (*Manager, error) {
 	provider, ok := providers[providerName]
 	if !ok {
 		return nil, fmt.Errorf("session: unknown provide %q", providerName)
 	}
 	return &Manager{
-		provider:    provider,
-		cookieName:  cookieName,
-		maxLifeTime: maxLifeTime,
+		provider: provider,
+		opts:     setDefaults(opts),
 	}, nil
 }
 
@@ -41,20 +54,20 @@ func (m *Manager) newSID() string {
 }
 
 // newSession returns a new session.
-func (m *Manager) newSession(w http.ResponseWriter) (Session, error) {
+func (m *Manager) newSession(w http.ResponseWriter) (*Session, error) {
 	sid := m.newSID()
-	s, err := m.provider.Init(sid)
-	if err != nil {
+
+	s := NewSession(sid, m.opts.MaxAge)
+	if err := m.provider.Init(s); err != nil {
 		return nil, err
 	}
-	go time.AfterFunc(time.Duration(m.maxLifeTime)*time.Second, func() { m.provider.Destroy(sid) })
+	go time.AfterFunc(time.Duration(m.opts.MaxAge)*time.Second, func() { m.provider.Destroy(sid) })
 
 	cookie := &http.Cookie{
-		Name:     m.cookieName,
+		Name:     m.opts.Cookie,
 		Value:    url.QueryEscape(sid),
-		Path:     "/",
 		HttpOnly: true,
-		MaxAge:   int(m.maxLifeTime),
+		MaxAge:   m.opts.MaxAge,
 	}
 	http.SetCookie(w, cookie)
 
@@ -63,12 +76,9 @@ func (m *Manager) newSession(w http.ResponseWriter) (Session, error) {
 
 // Start finds and returns a session given a request cookie.
 // If not found then returns a new session.
-func (m *Manager) Start(w http.ResponseWriter, r *http.Request) (Session, error) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
+func (m *Manager) Start(w http.ResponseWriter, r *http.Request) (*Session, error) {
 	// if the cookie hasn't session id then sets a new session.
-	cookie, err := r.Cookie(m.cookieName)
+	cookie, err := r.Cookie(m.opts.Cookie)
 	if err != nil || cookie.Value == "" {
 		return m.newSession(w)
 	}
@@ -85,12 +95,27 @@ func (m *Manager) Start(w http.ResponseWriter, r *http.Request) (Session, error)
 		return m.newSession(w)
 	}
 
+	// expires is before now.
+	if s.data.Expires.Before(time.Now()) {
+		m.Destroy(s)
+		return m.newSession(w)
+	}
+
+	go time.AfterFunc(time.Until(s.data.Expires), func() {
+		m.provider.Destroy(sid)
+	})
+
 	return s, nil
 }
 
 // Destroy removes a session from provider.
-func (m *Manager) Destroy(s Session) error {
-	return m.provider.Destroy(s.SessionID())
+func (m *Manager) Destroy(s *Session) error {
+	return m.provider.Destroy(s.ID())
+}
+
+// Commit calls Provider.Commit that session to be persistence.
+func (m *Manager) Commit(s *Session) error {
+	return m.provider.Commit(s.ID())
 }
 
 // Register registers a provider with specified name.
