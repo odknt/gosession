@@ -16,10 +16,13 @@ type Option struct {
 	// defaults:
 	//   Cookie:   "gosessionid"
 	//   MaxAge:   0
+	//   SIDLen:   32
+	//   SameSite: http.SameSiteDefaultMode
 
-	Cookie string
-	MaxAge int
-	SIDLen int
+	Cookie   string
+	MaxAge   int
+	SIDLen   int
+	SameSite http.SameSite
 }
 
 func setDefaults(opts Option) Option {
@@ -28,6 +31,9 @@ func setDefaults(opts Option) Option {
 	}
 	if opts.SIDLen == 0 {
 		opts.SIDLen = 32
+	}
+	if opts.SameSite == 0 {
+		opts.SameSite = http.SameSiteDefaultMode
 	}
 	return opts
 }
@@ -77,6 +83,7 @@ func (m *Manager) newSession(w http.ResponseWriter) (*Session, error) {
 		Value:    url.QueryEscape(sid),
 		HttpOnly: true,
 		MaxAge:   m.opts.MaxAge,
+		SameSite: m.opts.SameSite,
 	}
 	http.SetCookie(w, cookie)
 
