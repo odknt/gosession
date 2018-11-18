@@ -1,6 +1,6 @@
 # gosession
 
-[![license](http://img.shields.io/badge/license-MIT-red.svg?style=flat)](https://raw.githubusercontent.com/odknt/gosession/master/LICENSE) [![Coverage](http://gocover.io/_badge/github.com/odknt/gosession)](http://gocover.io/github.com/odknt/gosession) [![Build Status](https://api.travis-ci.com/odknt/gosession.svg?branch=master)](https://travis-ci.com/odknt/gosession)
+[![license](http://img.shields.io/badge/license-MIT-red.svg?style=flat)](https://raw.githubusercontent.com/odknt/gosession/master/LICENSE) [![Coverage](https://gocover.io/_badge/github.com/odknt/gosession)](https://gocover.io/github.com/odknt/gosession) [![Build Status](https://api.travis-ci.com/odknt/gosession.svg?branch=master)](https://travis-ci.com/odknt/gosession)
 
 A simple implementation for net/http.
 
