@@ -14,11 +14,13 @@ var providers = map[string]Provider{}
 // Option is options when Manager creating session.
 type Option struct {
 	// defaults:
+	//   Path:    "/"
 	//   Cookie:   "gosessionid"
 	//   MaxAge:   0
 	//   SIDLen:   32
 	//   SameSite: http.SameSiteDefaultMode
 
+	Path     string
 	Cookie   string
 	MaxAge   int
 	SIDLen   int
@@ -26,6 +28,9 @@ type Option struct {
 }
 
 func setDefaults(opts Option) Option {
+	if opts.Path == "" {
+		opts.Path = "/"
+	}
 	if opts.Cookie == "" {
 		opts.Cookie = "gosessionid"
 	}
@@ -84,6 +89,7 @@ func (m *Manager) newSession(w http.ResponseWriter) (*Session, error) {
 		HttpOnly: true,
 		MaxAge:   m.opts.MaxAge,
 		SameSite: m.opts.SameSite,
+		Path:     m.opts.Path,
 	}
 	http.SetCookie(w, cookie)
 
