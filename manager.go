@@ -1,13 +1,12 @@
 package session
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"time"
-
-	"github.com/rs/xid"
 )
 
 var providers = map[string]Provider{}
@@ -20,11 +19,15 @@ type Option struct {
 
 	Cookie string
 	MaxAge int
+	SIDLen int
 }
 
 func setDefaults(opts Option) Option {
 	if opts.Cookie == "" {
 		opts.Cookie = "gosessionid"
+	}
+	if opts.SIDLen == 0 {
+		opts.SIDLen = 32
 	}
 	return opts
 }
@@ -48,14 +51,20 @@ func NewManager(providerName string, opts Option) (*Manager, error) {
 }
 
 // newSID returns a new session id.
-func (m *Manager) newSID() string {
-	guid := xid.New()
-	return guid.String()
+func (m *Manager) newSID() (string, error) {
+	sid := make([]byte, m.opts.SIDLen)
+	if _, err := rand.Read(sid); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", sid), nil
 }
 
 // newSession returns a new session.
 func (m *Manager) newSession(w http.ResponseWriter) (*Session, error) {
-	sid := m.newSID()
+	sid, err := m.newSID()
+	if err != nil {
+		return nil, err
+	}
 
 	s := NewSession(sid, m.opts.MaxAge)
 	if err := m.provider.Init(s); err != nil {

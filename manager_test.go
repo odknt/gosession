@@ -1,6 +1,8 @@
 package session
 
 import (
+	"bytes"
+	"crypto/rand"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -35,6 +37,13 @@ func TestManagerNewSession(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, s)
 	assert.NotEmpty(t, w.Header().Get("Set-Cookie"))
+
+	// session id generate failed.
+	tmp := rand.Reader
+	rand.Reader = bytes.NewReader([]byte{})
+	_, err = m.newSession(w)
+	assert.Error(t, err)
+	rand.Reader = tmp
 }
 
 func TestStart(t *testing.T) {
@@ -48,6 +57,7 @@ func TestStart(t *testing.T) {
 	s, err := m.Start(w, r)
 	assert.NoError(t, err)
 	assert.NotNil(t, s)
+	assert.NotEmpty(t, s.ID())
 
 	// get session id from response.
 	sid := getSessionID(t, w)
