@@ -6,4 +6,5 @@ type Provider interface {
 	Read(sid string) (*Session, error)
 	Destroy(sid string) error
 	Commit(sid string) error
+	Cleanup() error
 }

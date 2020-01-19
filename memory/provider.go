@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/odknt/gosession"
+	session "github.com/odknt/gosession"
 )
 
 // Provider is an implementation of session.Provider for in-memory.
@@ -37,6 +37,11 @@ func (p *Provider) Read(sid string) (*session.Session, error) {
 		return s, fmt.Errorf("not found session by given session id")
 	}
 	return s, nil
+}
+
+// Cleanup cleans all sessions.
+func (p *Provider) Cleanup() error {
+	return nil
 }
 
 // Destroy removes a session by given session id.

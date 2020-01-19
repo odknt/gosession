@@ -44,6 +44,12 @@ func (s Session) ID() string {
 	return s.sid
 }
 
+// Expired returns true if the session is expired.
+func (s Session) Expired() bool {
+	// expires is before now.
+	return s.data.Expires.Before(time.Now())
+}
+
 // GobEncode implements the gob.GobEncoder interface.
 func (s Session) GobEncode() ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})

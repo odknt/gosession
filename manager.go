@@ -140,6 +140,11 @@ func (m *Manager) Commit(s *Session) error {
 	return m.provider.Commit(s.ID())
 }
 
+// Cleanup loads all sessions.
+func (m *Manager) Cleanup() error {
+	return m.provider.Cleanup()
+}
+
 // Register registers a provider with specified name.
 func Register(name string, provider Provider) error {
 	if provider == nil {

@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/odknt/gosession"
+	session "github.com/odknt/gosession"
 	"github.com/stretchr/testify/assert"
 )
 

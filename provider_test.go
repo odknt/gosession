@@ -32,6 +32,10 @@ func (p inMemoryProvider) Commit(sid string) error {
 	return nil
 }
 
+func (p inMemoryProvider) Cleanup() error {
+	return nil
+}
+
 type errorProvider struct {
 	inMemoryProvider
 }

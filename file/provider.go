@@ -4,9 +4,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
-	"github.com/odknt/gosession"
+	session "github.com/odknt/gosession"
 	"github.com/odknt/gosession/memory"
 )
 
@@ -76,6 +77,35 @@ func (p *Provider) Commit(sid string) error {
 	}
 
 	return p.save(s)
+}
+
+// Cleanup cleans all sessions.
+func (p *Provider) Cleanup() error {
+	if err := filepath.Walk(p.dir, func(fpath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(p.dir, fpath)
+		if rel == "." {
+			return nil
+		}
+		if info.IsDir() {
+			return filepath.SkipDir
+		}
+		base := filepath.Base(fpath)
+		if strings.HasPrefix(base, p.prefix) {
+			sid := strings.TrimPrefix(base, p.prefix)
+			s, err := p.Read(sid)
+			if err == nil && s.Expired() {
+				p.Destroy(sid)
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (p *Provider) save(s *session.Session) error {
